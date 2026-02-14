@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700;900&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.cover-title {
+  font-family: 'Fraunces', serif;
+}
+
+.cover-ui {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+@layer components {
+  .btn-action {
+    @apply py-2 px-3 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 border transition-all active:scale-95;
+  }
+}
+
+body.generating-pdf {
+  overflow: hidden !important;
+}

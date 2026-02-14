@@ -1,0 +1,8 @@
+Se o PowerShell bloquear a execucao do .ps1, rode uma vez:
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+para iniciar de forma manual va na pasta raiz segure tecla shift + botão direito do mouse e escolha abrir janela power shell 
+
+rode os seguintes comandos
+npm install 
+npm run dev

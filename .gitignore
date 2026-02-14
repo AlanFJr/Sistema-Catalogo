@@ -1,28 +1,15 @@
-# Python artifacts
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
-.venv/
-venv/
-ENV/
-
-# Environment files / secrets
+node_modules
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/uploads/*
+!backend/uploads/.gitkeep
+dist
 .env
 .env.*
-*.key
-*.pem
-
-# Logs and local data
+!.env.example
 *.log
-*.sqlite3
-*.db
-users.json
-
-# OS / editor junk
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
+coverage
+*.tmp
+*.bak
