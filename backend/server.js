@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import multer from 'multer';
 import morgan from 'morgan';
 import helmet from 'helmet';
@@ -10,6 +11,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 import imageSize from 'image-size';
+
+// Async route wrapper - catches errors and forwards to error handler
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 dotenv.config();
 
@@ -24,17 +28,61 @@ if (!fs.existsSync(uploadsDir)) {
 
 const prisma = new PrismaClient();
 const app = express();
-
 app.disable('x-powered-by');
 
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5175')
+const parseBooleanEnv = (value, fallback) => {
+  if (typeof value !== 'string') return fallback;
+  if (value.toLowerCase() === 'true') return true;
+  if (value.toLowerCase() === 'false') return false;
+  return fallback;
+};
+
+const enableApiRateLimit = parseBooleanEnv(
+  process.env.ENABLE_API_RATE_LIMIT,
+  process.env.NODE_ENV === 'production'
+);
+
+const enableUploadRateLimit = parseBooleanEnv(
+  process.env.ENABLE_UPLOAD_RATE_LIMIT,
+  process.env.NODE_ENV === 'production'
+);
+
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5175')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const normalizeHost = (host) => {
+  if (host === 'localhost') return 'local';
+  if (host === '127.0.0.1') return 'local';
+  return host;
+};
+
+const isAllowedOrigin = (origin) => {
+  if (allowedOrigins.includes(origin)) return true;
+
+  try {
+    const requestUrl = new URL(origin);
+    return allowedOrigins.some((allowedOrigin) => {
+      try {
+        const allowedUrl = new URL(allowedOrigin);
+        return (
+          allowedUrl.protocol === requestUrl.protocol
+          && normalizeHost(allowedUrl.hostname) === normalizeHost(requestUrl.hostname)
+          && allowedUrl.port === requestUrl.port
+        );
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -53,19 +101,26 @@ const apiLimiter = rateLimit({
 
 const uploadLimiter = rateLimit({
   windowMs: Number(process.env.UPLOAD_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
-  max: Number(process.env.UPLOAD_RATE_LIMIT_MAX || 30),
+  max: Number(process.env.UPLOAD_RATE_LIMIT_MAX || 300),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Limite de uploads atingido. Tente novamente depois.' }
 });
 
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use('/api', apiLimiter);
-app.use(express.json({ limit: '2mb' }));
-app.use(morgan('dev'));
+const uploadLimiterMiddleware = enableUploadRateLimit
+  ? uploadLimiter
+  : (_req, _res, next) => next();
 
-app.use('/uploads', express.static(uploadsDir, { fallthrough: false, maxAge: '1h' }));
+app.use(helmet());
+app.use(compression({ level: 6, threshold: 1024 }));
+app.use(cors(corsOptions));
+if (enableApiRateLimit) {
+  app.use('/api', apiLimiter);
+}
+app.use(express.json({ limit: '2mb' }));
+if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
+
+app.use('/uploads', express.static(uploadsDir, { fallthrough: false, maxAge: '7d', immutable: true }));
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
@@ -142,15 +197,15 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/catalogs', async (req, res) => {
+app.post('/api/catalogs', asyncHandler(async (req, res) => {
   const name = String(req.body?.name || 'Catalogo Atual');
   const description = req.body?.description ? String(req.body.description) : null;
   const status = req.body?.status ? String(req.body.status) : 'in_progress';
   const catalog = await prisma.catalog.create({ data: { name, description, status } });
   res.json({ catalog });
-});
+}));
 
-app.get('/api/catalogs/:id', async (req, res) => {
+app.get('/api/catalogs/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const catalog = await prisma.catalog.findUnique({
     where: { id },
@@ -186,9 +241,9 @@ app.get('/api/catalogs/:id', async (req, res) => {
     },
     items
   });
-});
+}));
 
-app.post('/api/catalogs/:id/cards', async (req, res) => {
+app.post('/api/catalogs/:id/cards', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { cardId, position } = req.body || {};
 
@@ -229,9 +284,9 @@ app.post('/api/catalogs/:id/cards', async (req, res) => {
   });
 
   res.json({ catalogItem: mapCatalogItemResponse(catalogItem) });
-});
+}));
 
-app.delete('/api/catalogs/:id/cards/:cardId', async (req, res) => {
+app.delete('/api/catalogs/:id/cards/:cardId', asyncHandler(async (req, res) => {
   const { id, cardId } = req.params;
   const item = await prisma.catalogItem.findFirst({
     where: { catalogId: id, cardId, itemType: 'card' },
@@ -241,9 +296,9 @@ app.delete('/api/catalogs/:id/cards/:cardId', async (req, res) => {
     await prisma.catalogItem.delete({ where: { id: item.id } });
   }
   res.json({ ok: true });
-});
+}));
 
-app.put('/api/catalogs/:id/cards/order', async (req, res) => {
+app.put('/api/catalogs/:id/cards/order', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const itemIds = Array.isArray(req.body?.itemIds) ? req.body.itemIds : [];
   if (itemIds.length === 0) {
@@ -259,9 +314,9 @@ app.put('/api/catalogs/:id/cards/order', async (req, res) => {
     )
   );
   res.json({ ok: true });
-});
+}));
 
-app.put('/api/catalogs/:id/items/reorder', async (req, res) => {
+app.put('/api/catalogs/:id/items/reorder', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const itemIds = Array.isArray(req.body?.itemIds) ? req.body.itemIds : [];
   await prisma.$transaction(
@@ -273,9 +328,9 @@ app.put('/api/catalogs/:id/items/reorder', async (req, res) => {
     )
   );
   res.json({ ok: true });
-});
+}));
 
-app.post('/api/catalogs/:id/spacers', async (req, res) => {
+app.post('/api/catalogs/:id/spacers', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { position, spacerConfig } = req.body || {};
   const count = await prisma.catalogItem.count({ where: { catalogId: id } });
@@ -289,9 +344,9 @@ app.post('/api/catalogs/:id/spacers', async (req, res) => {
     }
   });
   res.json({ spacer: mapCatalogItemResponse(spacer) });
-});
+}));
 
-app.put('/api/catalogs/:id/spacers/:spacerId', async (req, res) => {
+app.put('/api/catalogs/:id/spacers/:spacerId', asyncHandler(async (req, res) => {
   const { id, spacerId } = req.params;
   const { spacerConfig } = req.body || {};
   await prisma.catalogItem.updateMany({
@@ -300,21 +355,21 @@ app.put('/api/catalogs/:id/spacers/:spacerId', async (req, res) => {
   });
   const spacer = await prisma.catalogItem.findUnique({ where: { id: spacerId } });
   res.json({ spacer: spacer ? mapCatalogItemResponse(spacer) : null });
-});
+}));
 
-app.delete('/api/catalogs/:id/spacers/:spacerId', async (req, res) => {
+app.delete('/api/catalogs/:id/spacers/:spacerId', asyncHandler(async (req, res) => {
   const { id, spacerId } = req.params;
   await prisma.catalogItem.deleteMany({ where: { id: spacerId, catalogId: id } });
   res.json({ ok: true });
-});
+}));
 
-app.delete('/api/catalogs/:id/items/:itemId', async (req, res) => {
+app.delete('/api/catalogs/:id/items/:itemId', asyncHandler(async (req, res) => {
   const { id, itemId } = req.params;
   await prisma.catalogItem.deleteMany({ where: { id: itemId, catalogId: id } });
   res.json({ ok: true });
-});
+}));
 
-app.get('/api/projects', async (req, res) => {
+app.get('/api/projects', asyncHandler(async (req, res) => {
   const status = req.query.status ? String(req.query.status) : null;
   const projects = await prisma.catalog.findMany({
     where: status ? { status } : {},
@@ -331,17 +386,17 @@ app.get('/api/projects', async (req, res) => {
       cardCount: project.catalogItems.length
     }))
   });
-});
+}));
 
-app.post('/api/projects', async (req, res) => {
+app.post('/api/projects', asyncHandler(async (req, res) => {
   const name = String(req.body?.name || 'Novo Projeto');
   const description = req.body?.description ? String(req.body.description) : null;
   const status = req.body?.status ? String(req.body.status) : 'in_progress';
   const project = await prisma.catalog.create({ data: { name, description, status } });
   res.json({ project });
-});
+}));
 
-app.get('/api/projects/:id', async (req, res) => {
+app.get('/api/projects/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const project = await prisma.catalog.findUnique({ where: { id } });
   if (!project) {
@@ -349,9 +404,9 @@ app.get('/api/projects/:id', async (req, res) => {
     return;
   }
   res.json({ project });
-});
+}));
 
-app.put('/api/projects/:id', async (req, res) => {
+app.put('/api/projects/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const data = {};
   if (req.body?.name) data.name = String(req.body.name);
@@ -359,18 +414,18 @@ app.put('/api/projects/:id', async (req, res) => {
   if (req.body?.status) data.status = String(req.body.status);
   const project = await prisma.catalog.update({ where: { id }, data });
   res.json({ project });
-});
+}));
 
-app.post('/api/projects/:id/archive', async (req, res) => {
+app.post('/api/projects/:id/archive', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const project = await prisma.catalog.update({
     where: { id },
     data: { status: 'archived' }
   });
   res.json({ project });
-});
+}));
 
-app.post('/api/cards', async (req, res) => {
+app.post('/api/cards', asyncHandler(async (req, res) => {
   const {
     refCode,
     title,
@@ -410,16 +465,16 @@ app.post('/api/cards', async (req, res) => {
     }
     throw error;
   }
-});
+}));
 
-app.delete('/api/cards/tmp', async (_req, res) => {
+app.delete('/api/cards/tmp', asyncHandler(async (_req, res) => {
   const result = await prisma.card.deleteMany({
     where: { refCode: { startsWith: 'TMP-' } }
   });
   res.json({ deleted: result.count });
-});
+}));
 
-app.put('/api/cards/:id', async (req, res) => {
+app.put('/api/cards/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const data = { ...req.body };
 
@@ -438,15 +493,15 @@ app.put('/api/cards/:id', async (req, res) => {
   });
 
   res.json({ card: mapCardResponse(card) });
-});
+}));
 
-app.delete('/api/cards/:id', async (req, res) => {
+app.delete('/api/cards/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   await prisma.card.delete({ where: { id } });
   res.json({ ok: true });
-});
+}));
 
-app.get('/api/cards/by-ref/:refCode', async (req, res) => {
+app.get('/api/cards/by-ref/:refCode', asyncHandler(async (req, res) => {
   const { refCode } = req.params;
   const card = await prisma.card.findUnique({
     where: { refCode },
@@ -457,9 +512,9 @@ app.get('/api/cards/by-ref/:refCode', async (req, res) => {
     return;
   }
   res.json({ card: mapCardResponse(card) });
-});
+}));
 
-app.get('/api/cards/search', async (req, res) => {
+app.get('/api/cards/search', asyncHandler(async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (!q) {
     res.json({ cards: [] });
@@ -481,9 +536,80 @@ app.get('/api/cards/search', async (req, res) => {
   });
 
   res.json({ cards: cards.map(mapCardResponse) });
-});
+}));
 
-app.post('/api/cards/:id/images', uploadLimiter, upload.single('image'), async (req, res) => {
+// Bulk lookup: receive array of refCodes, return map of existing cards
+app.post('/api/cards/bulk-lookup', asyncHandler(async (req, res) => {
+  const refCodes = Array.isArray(req.body?.refCodes) ? req.body.refCodes : [];
+  if (refCodes.length === 0) {
+    res.json({ cards: {} });
+    return;
+  }
+  // SQLite is case-sensitive by default, so we query all and map
+  const cards = await prisma.card.findMany({
+    where: { refCode: { in: refCodes } },
+    include: { images: { orderBy: { createdAt: 'desc' }, take: 1 } }
+  });
+  const cardMap = {};
+  for (const card of cards) {
+    cardMap[card.refCode] = mapCardResponse(card);
+  }
+  res.json({ cards: cardMap });
+}));
+
+// Bulk create: receive array of card payloads, create only those not in DB
+app.post('/api/cards/bulk-create', asyncHandler(async (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  if (items.length === 0) {
+    res.json({ cards: {} });
+    return;
+  }
+  const refCodes = items.map((i) => i.refCode).filter(Boolean);
+  const existing = await prisma.card.findMany({
+    where: { refCode: { in: refCodes } },
+    include: { images: { orderBy: { createdAt: 'desc' }, take: 1 } }
+  });
+  const existingMap = {};
+  for (const card of existing) {
+    existingMap[card.refCode] = card;
+  }
+  const results = {};
+  for (const item of items) {
+    if (!item.refCode) continue;
+    if (existingMap[item.refCode]) {
+      results[item.refCode] = mapCardResponse(existingMap[item.refCode]);
+      continue;
+    }
+    try {
+      const card = await prisma.card.create({
+        data: {
+          refCode: item.refCode,
+          title: item.title || item.refCode,
+          description: item.description || null,
+          tags: item.tags || null,
+          dimensions: item.dimensions || null,
+          weight: item.weight || null,
+          boxQty: item.boxQty || null,
+          price: item.price || null
+        },
+        include: { images: { orderBy: { createdAt: 'desc' }, take: 1 } }
+      });
+      results[item.refCode] = mapCardResponse(card);
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        // race condition: another request created it, fetch it
+        const found = await prisma.card.findUnique({
+          where: { refCode: item.refCode },
+          include: { images: { orderBy: { createdAt: 'desc' }, take: 1 } }
+        });
+        if (found) results[item.refCode] = mapCardResponse(found);
+      }
+    }
+  }
+  res.json({ cards: results });
+}));
+
+app.post('/api/cards/:id/images', uploadLimiterMiddleware, upload.single('image'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const file = req.file;
 
@@ -521,9 +647,9 @@ app.post('/api/cards/:id/images', uploadLimiter, upload.single('image'), async (
       height: image.height
     }
   });
-});
+}));
 
-app.get('/api/cards/:id/images', async (req, res) => {
+app.get('/api/cards/:id/images', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const images = await prisma.image.findMany({
     where: { cardId: id },
@@ -540,9 +666,13 @@ app.get('/api/cards/:id/images', async (req, res) => {
       createdAt: image.createdAt
     }))
   });
-});
+}));
 
 app.use((err, _req, res, _next) => {
+  if (err?.status) {
+    res.status(err.status).json({ error: err.message || 'Erro ao processar requisicao.' });
+    return;
+  }
   if (err?.message === 'CORS_NOT_ALLOWED') {
     res.status(403).json({ error: 'Origem nao permitida.' });
     return;

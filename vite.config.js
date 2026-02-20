@@ -16,5 +16,18 @@ export default defineConfig({
   preview: {
     host: '127.0.0.1',
     strictPort: true
+  },
+  build: {
+    target: 'es2020',
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          icons: ['lucide-react']
+        }
+      }
+    }
   }
 });
