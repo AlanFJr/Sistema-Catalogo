@@ -68,8 +68,14 @@
 
 ```
 Sistema Catalogo/
+├── start-app.bat             # Inicializacao portatil (CMD)
+├── start-app.ps1             # Inicializacao portatil (PowerShell)
+├── _run_server.cmd           # Launcher interno do servidor
+├── node/                     # Node.js portatil (opcional)
 ├── backend/
 │   ├── server.js              # API Express com 20+ endpoints RESTful
+│   ├── import-products.mjs    # Importacao massiva de produtos via CSV
+│   ├── check-products.mjs     # Verificacao rapida de produtos no banco
 │   ├── uploads/               # Armazenamento de imagens
 │   └── prisma/
 │       └── schema.prisma      # Modelos: Catalog, Card, Image, CatalogItem
@@ -123,10 +129,41 @@ Sistema Catalogo/
 ## 🚀 Como Executar
 
 ### Pré-requisitos
-- **Node.js 18+**
-- **npm** ou **yarn**
+- **Modo Portátil (recomendado no Windows):** sem pré-requisito global de Node
+- **Modo Desenvolvimento:** Node.js 18+ e npm
 
-### Instalação
+### Execução Portátil (Windows)
+
+Este projeto suporta execução portátil com detecção automática de:
+- **Node portátil em `node\`** (prioridade)
+- **Node do sistema** (fallback)
+
+#### Opção 1 — CMD
+
+```bat
+start-app.bat
+```
+
+#### Opção 2 — PowerShell
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-app.ps1
+```
+
+Na primeira execução, os scripts:
+- instalam dependências (`npm install`)
+- geram Prisma Client (se necessário)
+- aplicam migrations com `prisma migrate deploy`
+- fazem build do frontend (se `dist/` não existir)
+- iniciam o servidor em **produção** (`backend/server.js`)
+
+Ao final, o app fica acessível em:
+- **Local:** http://localhost:5176
+- **Rede:** http://SEU_IP:5176
+
+> Em modo portátil, o Express serve API + frontend buildado (`dist/`) na mesma porta.
+
+### Execução em Desenvolvimento
 
 ```bash
 # Clonar o repositório
@@ -137,7 +174,7 @@ cd Sistema-Catalogo
 npm install
 
 # Configurar variáveis de ambiente
-cp .env.example .env
+copy .env.example .env
 
 # Inicializar o banco de dados
 npm run prisma:migrate
@@ -147,8 +184,9 @@ npm run dev
 ```
 
 ### Acessos
-- **Frontend:** http://localhost:5175
-- **API:** http://localhost:5176
+- **Dev Frontend:** http://localhost:5175
+- **Dev API:** http://localhost:5176
+- **Portátil/Produção local:** http://localhost:5176
 
 ---
 
@@ -185,6 +223,22 @@ npm run preview       # Preview do build
 npm run prisma:migrate  # Rodar migrations do banco
 npm run prisma:generate # Gerar client Prisma
 ```
+
+### Utilitários de Importação/Validação
+
+```bash
+node backend/import-products.mjs <caminho_csv>  # Importa CSV (separador ;, com deduplicacao por SKU)
+node backend/check-products.mjs                  # Mostra total de cards e amostra por refCode
+```
+
+### Distribuição Portátil
+
+Para usar em outro computador (Windows), copie a pasta do projeto contendo ao menos:
+- `start-app.bat` e/ou `start-app.ps1`
+- `backend/`, `src/`, `package.json` e `.env`
+- pasta `node/` (se quiser rodar sem instalar Node no sistema)
+
+Depois, execute `start-app.bat`.
 
 ---
 
