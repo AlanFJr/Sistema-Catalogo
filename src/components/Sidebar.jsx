@@ -54,7 +54,7 @@ const Sidebar = React.memo(({
           <LayoutGrid size={20} />
         </div>
         <div>
-          <h1 className="font-bold text-gray-800 leading-tight">Editor de Catalogo</h1>
+          <h1 className="font-bold text-gray-800 leading-tight">PIM Builder</h1>
           <p className="text-[10px] text-gray-400 font-medium">v3.0 Performance</p>
         </div>
       </div>
@@ -140,7 +140,7 @@ const Sidebar = React.memo(({
             type="button"
           >
             {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-            {isGenerating ? 'Processando...' : 'Exportar PDF'}
+            {isGenerating ? 'Processando...' : 'Gerar PDF'}
           </button>
         </div>
 

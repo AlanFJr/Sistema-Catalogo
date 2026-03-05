@@ -27,7 +27,7 @@ if (Test-Path $portableNode) {
 
 Write-Host ""
 Write-Host "══════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Sistema Catalogo - Iniciando..." -ForegroundColor Cyan
+Write-Host "  PIM (Product Information Management) Builder - Iniciando..." -ForegroundColor Cyan
 Write-Host "══════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
@@ -99,7 +99,7 @@ for ($i = 0; $i -lt $maxWait; $i++) {
 if ($isOnline) {
     Write-Host ""
     Write-Host "══════════════════════════════════════════════════" -ForegroundColor Green
-    Write-Host "  Sistema Catalogo Online!" -ForegroundColor Green
+    Write-Host "  PIM (Product Information Management) Builder Online!" -ForegroundColor Green
     Write-Host "══════════════════════════════════════════════════" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Local:  http://localhost:5176" -ForegroundColor White

@@ -1,4 +1,4 @@
-# 📘 Sistema Catálogo — Gerador de Catálogos Profissionais em PDF
+# 📘 PIM (Product Information Management) Builder — Gerador de Catálogos em PDF
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-18.2-61DAFB?logo=react&logoColor=white" />
@@ -67,7 +67,7 @@
 ## 🏗️ Arquitetura
 
 ```
-Sistema Catalogo/
+PIM (Product Information Management) Builder/
 ├── start-app.bat             # Inicializacao portatil (CMD)
 ├── start-app.ps1             # Inicializacao portatil (PowerShell)
 ├── _run_server.cmd           # Launcher interno do servidor

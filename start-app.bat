@@ -29,7 +29,7 @@ if exist "%ROOT%node\node.exe" (
 
 echo.
 echo ══════════════════════════════════════════════════
-echo   Sistema Catalogo - Iniciando...
+echo   PIM (Product Information Management) Builder - Iniciando...
 echo ══════════════════════════════════════════════════
 echo.
 
@@ -85,7 +85,7 @@ set "LAUNCHER=%ROOT%_run_server.cmd"
 (
     echo @echo off
     echo chcp 65001 ^>nul 2^>^&1
-    echo title Sistema Catalogo - Servidor
+    echo title PIM (Product Information Management) Builder - Servidor
     echo cd /d "%%~dp0"
     echo set "NODE_ENV=production"
     echo if exist "%%~dp0node\node.exe" set "PATH=%%~dp0node;%%PATH%%"
@@ -99,7 +99,7 @@ set "LAUNCHER=%ROOT%_run_server.cmd"
     echo pause
 ) > "%LAUNCHER%"
 
-start "Sistema Catalogo - Servidor" cmd /k ""%LAUNCHER%""
+start "PIM (Product Information Management) Builder - Servidor" cmd /k ""%LAUNCHER%""
 
 :: ─── Wait for server to be ready ───
 echo Aguardando servidor ficar online...
@@ -113,7 +113,7 @@ if errorlevel 1 goto not_ready
 :: ─── Get LAN IP and show access info ───
 echo.
 echo ══════════════════════════════════════════════════
-echo   Sistema Catalogo Online!
+echo   PIM (Product Information Management) Builder Online!
 echo ══════════════════════════════════════════════════
 echo.
 echo   Local:  http://localhost:5176
