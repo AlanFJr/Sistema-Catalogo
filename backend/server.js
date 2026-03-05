@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 import imageSize from 'image-size';
@@ -63,6 +64,17 @@ const isAllowedOrigin = (origin) => {
 
   try {
     const requestUrl = new URL(origin);
+    // Allow any request from private/local network IPs
+    const host = requestUrl.hostname;
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    ) {
+      return true;
+    }
     return allowedOrigins.some((allowedOrigin) => {
       try {
         const allowedUrl = new URL(allowedOrigin);
@@ -703,5 +715,16 @@ if (fs.existsSync(distPath)) {
 
 const PORT = process.env.PORT || 5176;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`API pronta em http://0.0.0.0:${PORT}`);
+  console.log(`\n  API pronta!\n`);
+  console.log(`  Local:   http://localhost:${PORT}`);
+  // Show all LAN addresses
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`  Rede:    http://${net.address}:${PORT}`);
+      }
+    }
+  }
+  console.log();
 });
