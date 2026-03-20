@@ -22,6 +22,7 @@ import ConfirmDialog from './components/ui/ConfirmDialog';
 import SearchModal from './components/SearchModal';
 import ProjectModal from './components/ProjectModal';
 import ProjectsView from './components/ProjectsView';
+import SpeechModal from './components/SpeechModal';
 
 export default function App() {
   const catalog = useCatalog();
@@ -35,6 +36,7 @@ export default function App() {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isClearAllOpen, setIsClearAllOpen] = useState(false);
   const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
+  const [isSpeechModalOpen, setIsSpeechModalOpen] = useState(false);
 
   const ctrlSelectionRef = useRef({ active: false, touched: new Set() });
   const printRef = useRef(null);
@@ -468,6 +470,7 @@ export default function App() {
         onClearMultiSelection={() => setMultiSelectedIds(new Set())}
         onDownloadCsvTemplate={handleDownloadCsvTemplate}
         onDownloadPdf={handleDownloadPdf}
+        onGenerateSpeech={() => setIsSpeechModalOpen(true)}
         updateCoverLogo={updateCoverLogo}
       />
 
@@ -603,6 +606,13 @@ export default function App() {
         description={projectsHook.newProjectDescription}
         setDescription={projectsHook.setNewProjectDescription}
         onCreate={() => projectsHook.createProject(handleOpenProject)}
+      />
+
+      <SpeechModal
+        isOpen={isSpeechModalOpen}
+        onClose={() => setIsSpeechModalOpen(false)}
+        catalogId={catalogId}
+        catalogName={projectsHook.currentProject?.name || 'Catálogo'}
       />
     </div>
   );
