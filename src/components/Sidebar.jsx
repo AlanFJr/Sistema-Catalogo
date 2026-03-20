@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import {
   Plus, Trash2, Settings, Palette, LayoutGrid, Download, Loader2,
-  FileSpreadsheet, Save, FolderOpen, Eye, EyeOff,
+  FileSpreadsheet, Save, FolderOpen, Eye, EyeOff, FileText,
 } from 'lucide-react';
 import ToggleField from './ui/ToggleField';
 import ColorPicker from './ui/ColorPicker';
@@ -24,6 +24,7 @@ const Sidebar = React.memo(({
   onClearMultiSelection,
   onDownloadCsvTemplate,
   onDownloadPdf,
+  onGenerateSpeech,
   updateCoverLogo,
 }) => {
   const csvInputRef = useRef(null);
@@ -141,6 +142,15 @@ const Sidebar = React.memo(({
           >
             {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
             {isGenerating ? 'Processando...' : 'Gerar PDF'}
+          </button>
+
+          <button
+            onClick={onGenerateSpeech}
+            className="w-full py-3 px-4 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all mt-2 bg-purple-600 text-white hover:bg-purple-700 hover:shadow-md active:scale-95"
+            type="button"
+          >
+            <FileText size={18} />
+            Gerar Discurso
           </button>
         </div>
 

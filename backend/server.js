@@ -680,6 +680,209 @@ app.get('/api/cards/:id/images', asyncHandler(async (req, res) => {
   });
 }));
 
+// Speech/Discourse generation endpoints
+app.post('/api/catalogs/:id/speech/generate', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { templateType = 'sales_pitch', title } = req.body || {};
+
+  const catalog = await prisma.catalog.findUnique({
+    where: { id },
+    include: {
+      catalogItems: {
+        where: { itemType: 'card' },
+        orderBy: { position: 'asc' },
+        include: {
+          card: {
+            include: {
+              images: { orderBy: { createdAt: 'desc' }, take: 1 }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!catalog) {
+    res.status(404).json({ error: 'Catalogo nao encontrado.' });
+    return;
+  }
+
+  const cards = catalog.catalogItems
+    .filter((item) => item.card)
+    .map((item) => item.card);
+
+  // Generate speech content based on template type
+  let content = '';
+  const speechTitle = title || `Apresentacao: ${catalog.name}`;
+
+  if (templateType === 'sales_pitch') {
+    content = generateSalesPitchSpeech(catalog, cards);
+  } else if (templateType === 'product_overview') {
+    content = generateProductOverviewSpeech(catalog, cards);
+  } else if (templateType === 'executive_summary') {
+    content = generateExecutiveSummarySpeech(catalog, cards);
+  } else {
+    content = generateSalesPitchSpeech(catalog, cards);
+  }
+
+  const speech = await prisma.speech.create({
+    data: {
+      catalogId: id,
+      title: speechTitle,
+      content,
+      templateType
+    }
+  });
+
+  res.json({ speech });
+}));
+
+app.get('/api/catalogs/:id/speeches', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const speeches = await prisma.speech.findMany({
+    where: { catalogId: id },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ speeches });
+}));
+
+app.get('/api/speeches/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const speech = await prisma.speech.findUnique({ where: { id } });
+  if (!speech) {
+    res.status(404).json({ error: 'Discurso nao encontrado.' });
+    return;
+  }
+  res.json({ speech });
+}));
+
+app.put('/api/speeches/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const data = {};
+  if (req.body?.title) data.title = String(req.body.title);
+  if (req.body?.content) data.content = String(req.body.content);
+  if (req.body?.templateType) data.templateType = String(req.body.templateType);
+
+  const speech = await prisma.speech.update({ where: { id }, data });
+  res.json({ speech });
+}));
+
+app.delete('/api/speeches/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await prisma.speech.delete({ where: { id } });
+  res.json({ success: true });
+}));
+
+// Speech generation helper functions
+function generateSalesPitchSpeech(catalog, cards) {
+  const productCount = cards.length;
+  const categories = [...new Set(cards.map(c => c.tags).filter(Boolean).flatMap(t => t.split(',')))];
+
+  let speech = `# ${catalog.name}\n\n`;
+  if (catalog.description) {
+    speech += `${catalog.description}\n\n`;
+  }
+
+  speech += `## Introducao\n\n`;
+  speech += `Boa tarde a todos! E com grande satisfacao que apresento nosso catalogo "${catalog.name}". `;
+  speech += `Hoje vou compartilhar com voces ${productCount} produtos excepcionais que preparamos especialmente para atender as necessidades do seu negocio.\n\n`;
+
+  if (categories.length > 0) {
+    speech += `Nosso catalogo abrange diversas categorias, incluindo: ${categories.slice(0, 5).join(', ')}`;
+    if (categories.length > 5) speech += ` e muito mais`;
+    speech += `.\n\n`;
+  }
+
+  speech += `## Destaques dos Produtos\n\n`;
+
+  const featuredProducts = cards.slice(0, 5);
+  featuredProducts.forEach((card, idx) => {
+    speech += `### ${idx + 1}. ${card.title || card.refCode}\n\n`;
+    speech += `**Codigo:** ${card.refCode}\n\n`;
+    if (card.description) {
+      speech += `${card.description}\n\n`;
+    }
+    if (card.dimensions) {
+      speech += `**Dimensoes:** ${card.dimensions}\n`;
+    }
+    if (card.weight) {
+      speech += `**Peso:** ${card.weight}\n`;
+    }
+    if (card.boxQty) {
+      speech += `**Quantidade por caixa:** ${card.boxQty}\n`;
+    }
+    if (card.price) {
+      speech += `**Preco:** ${card.price}\n`;
+    }
+    speech += `\n`;
+  });
+
+  if (productCount > 5) {
+    speech += `E temos mais ${productCount - 5} produtos adicionais em nosso catalogo completo!\n\n`;
+  }
+
+  speech += `## Conclusao\n\n`;
+  speech += `Estes sao apenas alguns dos destaques do nosso catalogo. Cada produto foi cuidadosamente selecionado `;
+  speech += `para oferecer a melhor qualidade e valor para nossos clientes.\n\n`;
+  speech += `Estou a disposicao para responder quaisquer perguntas e fornecer informacoes adicionais sobre `;
+  speech += `qualquer um dos nossos produtos. Obrigado pela atencao!\n`;
+
+  return speech;
+}
+
+function generateProductOverviewSpeech(catalog, cards) {
+  let speech = `# Visao Geral: ${catalog.name}\n\n`;
+
+  speech += `## Sumario Executivo\n\n`;
+  speech += `Este catalogo apresenta ${cards.length} produtos, organizados para facilitar sua consulta.\n\n`;
+
+  speech += `## Lista Completa de Produtos\n\n`;
+  cards.forEach((card, idx) => {
+    speech += `${idx + 1}. **${card.title || card.refCode}** (Ref: ${card.refCode})\n`;
+    if (card.description) {
+      speech += `   - ${card.description}\n`;
+    }
+    if (card.price) {
+      speech += `   - Preco: ${card.price}\n`;
+    }
+  });
+
+  return speech;
+}
+
+function generateExecutiveSummarySpeech(catalog, cards) {
+  const productCount = cards.length;
+  const withPrice = cards.filter(c => c.price).length;
+  const withImages = cards.filter(c => c.images && c.images.length > 0).length;
+
+  let speech = `# Resumo Executivo: ${catalog.name}\n\n`;
+
+  if (catalog.description) {
+    speech += `${catalog.description}\n\n`;
+  }
+
+  speech += `## Metricas do Catalogo\n\n`;
+  speech += `- Total de produtos: ${productCount}\n`;
+  speech += `- Produtos com preco: ${withPrice}\n`;
+  speech += `- Produtos com imagens: ${withImages}\n`;
+  speech += `- Taxa de completude: ${Math.round((withPrice / productCount) * 100)}%\n\n`;
+
+  speech += `## Principais Produtos\n\n`;
+  const top5 = cards.slice(0, 5);
+  top5.forEach((card) => {
+    speech += `- **${card.title || card.refCode}**`;
+    if (card.price) speech += ` - ${card.price}`;
+    speech += `\n`;
+  });
+
+  speech += `\n## Proximos Passos\n\n`;
+  speech += `1. Revisar todos os produtos no catalogo completo\n`;
+  speech += `2. Identificar oportunidades de vendas\n`;
+  speech += `3. Preparar propostas personalizadas para clientes\n`;
+
+  return speech;
+}
+
 app.use((err, _req, res, _next) => {
   if (err?.status) {
     res.status(err.status).json({ error: err.message || 'Erro ao processar requisicao.' });

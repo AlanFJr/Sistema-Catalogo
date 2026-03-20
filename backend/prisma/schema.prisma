@@ -61,3 +61,15 @@ model CatalogItem {
   @@index([catalogId, position])
   @@index([cardId])
 }
+
+model Speech {
+  id          String   @id @default(uuid())
+  catalogId   String
+  title       String
+  content     String
+  templateType String  @default("sales_pitch")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([catalogId])
+}
