@@ -31,11 +31,11 @@ const CoverPage = React.memo(({ settings, resolvedCoverLogos, isGenerating }) =>
         </div>
 
         <div className="flex-1 flex flex-col justify-center">
-          <div className="cover-title text-5xl md:text-6xl font-black tracking-tight" style={{ color: settings.primaryColor }}>
+          <div className="pdf-text pdf-cover-title cover-title text-5xl md:text-6xl font-black tracking-tight" style={{ color: settings.primaryColor }}>
             {settings.coverTitle || 'TITULO DO CATALOGO'}
           </div>
           {settings.showCoverSubtitle && (
-            <div className="text-xl md:text-2xl font-medium text-gray-600 mt-4">
+            <div className="pdf-text pdf-cover-subtitle text-xl md:text-2xl font-medium text-gray-600 mt-4">
               {settings.coverSubtitle || 'SUBTITULO'}
             </div>
           )}
@@ -54,11 +54,11 @@ const CoverPage = React.memo(({ settings, resolvedCoverLogos, isGenerating }) =>
                     className="object-contain max-w-[140px]"
                     loading="lazy"
                   />
-                  <span className="text-[9px] uppercase tracking-widest text-gray-500">{logo.name}</span>
+                  <span className="pdf-text pdf-small text-[9px] uppercase tracking-widest text-gray-500">{logo.name}</span>
                 </div>
               ))}
           </div>
-          <div className="text-[10px] text-gray-500 text-right w-56">
+          <div className="pdf-text pdf-small text-[10px] text-gray-500 text-right w-56">
             {settings.coverFooter || 'RODAPE'}
           </div>
         </div>

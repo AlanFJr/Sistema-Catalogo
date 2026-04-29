@@ -15,16 +15,29 @@ if exist "%ROOT%node\node.exe" (
 ) else (
     where node >nul 2>&1
     if errorlevel 1 (
-        echo [ERRO] Node.js nao encontrado!
-        echo Baixe o Node.js portatil em: https://nodejs.org/en/download
-        echo Extraia na pasta "node\" dentro de "%ROOT%"
-        pause
-        exit /b 1
+        echo [INFO] Node.js nao encontrado. Baixando Node.js portatil...
+        powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\install-portable-node.ps1" -Root "%ROOT%"
+        if errorlevel 1 (
+            echo [ERRO] Falha ao instalar Node.js portatil.
+            pause
+            exit /b 1
+        )
+        if not exist "%ROOT%node\node.exe" (
+            echo [ERRO] Node.js portatil nao foi encontrado apos a instalacao.
+            pause
+            exit /b 1
+        )
+        set "NODE_EXE=%ROOT%node\node.exe"
+        set "NPM_CMD=%ROOT%node\npm.cmd"
+        set "NPX_CMD=%ROOT%node\npx.cmd"
+        set "PATH=%ROOT%node;%ROOT%node\node_modules\npm\bin;%PATH%"
+        echo [OK] Node.js portatil instalado: node\
+    ) else (
+        set "NODE_EXE=node"
+        set "NPM_CMD=npm"
+        set "NPX_CMD=npx"
+        echo [OK] Node.js do sistema encontrado.
     )
-    set "NODE_EXE=node"
-    set "NPM_CMD=npm"
-    set "NPX_CMD=npx"
-    echo [OK] Node.js do sistema encontrado.
 )
 
 echo.
@@ -58,18 +71,13 @@ echo [2/4] Verificando banco de dados...
 call "%NPX_CMD%" prisma migrate deploy --schema backend\prisma\schema.prisma 2>nul
 echo [OK] Banco de dados pronto.
 
-:: ─── Build frontend if dist/ doesn't exist ───
-if not exist "%ROOT%dist\index.html" (
-    echo [3/4] Construindo frontend ^(primeira execucao^)...
-    call "%NPX_CMD%" vite build
-    if errorlevel 1 (
-        echo [ERRO] Falha ao construir frontend.
-        pause
-        exit /b 1
-    )
-    echo [OK] Frontend construido.
-) else (
-    echo [OK] Frontend ja construido.
+:: --- Build frontend when source is newer than dist/ ---
+:: Atualiza tambem quando o codigo mudou ou algum asset do dist sumiu.
+set "ENSURE_DIST=%ROOT%scripts\ensure-dist.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ENSURE_DIST%" -Root "%ROOT%" -NpxCmd "%NPX_CMD%"
+if errorlevel 1 (
+    pause
+    exit /b 1
 )
 
 :: ─── Kill any existing process on port 5176 ───

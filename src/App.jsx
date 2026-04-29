@@ -40,6 +40,7 @@ export default function App() {
   const printRef = useRef(null);
   const containerRef = useRef(null);
   const imageSearchInputRef = useRef(null);
+  const html2pdfLoaderRef = useRef(null);
 
   const search = useSearch(isImageSearchOpen);
 
@@ -47,6 +48,8 @@ export default function App() {
     products, settings, setSettings, pageSubtitles,
     catalogId, isCatalogLoading, catalogError,
   } = catalog;
+
+  const coverPageCount = settings.showCover ? 1 : 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -59,14 +62,29 @@ export default function App() {
     return () => document.body.classList.remove('generating-pdf');
   }, [isGenerating]);
 
-  // Lazy load html2pdf
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => { if (document.body.contains(script)) document.body.removeChild(script); };
+  const loadHtml2pdf = useCallback(async () => {
+    if (window.html2pdf) return window.html2pdf;
+    if (!html2pdfLoaderRef.current) {
+      html2pdfLoaderRef.current = import('html2pdf.js')
+        .then((module) => {
+          const html2pdf = module.default || module.html2pdf || module;
+          window.html2pdf = html2pdf;
+          return html2pdf;
+        })
+        .catch((error) => {
+          html2pdfLoaderRef.current = null;
+          throw error;
+        });
+    }
+    return html2pdfLoaderRef.current;
   }, []);
+
+  // Preload the PDF engine from the local bundle so production CSP cannot block it.
+  useEffect(() => {
+    loadHtml2pdf().catch((error) => {
+      console.error('Falha ao carregar gerador de PDF:', error);
+    });
+  }, [loadHtml2pdf]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -275,7 +293,19 @@ export default function App() {
 
   // PDF export
   const handleDownloadPdf = useCallback(async () => {
-    if (!window.html2pdf) { alert('Sistema preparando... tente em 5 segundos.'); return; }
+    let html2pdf;
+    try {
+      html2pdf = await loadHtml2pdf();
+    } catch (error) {
+      console.error('Falha ao carregar gerador de PDF:', error);
+      alert('Nao foi possivel carregar o gerador de PDF. Reinicie o sistema e tente novamente.');
+      return;
+    }
+    if (!html2pdf) {
+      alert('Nao foi possivel carregar o gerador de PDF. Reinicie o sistema e tente novamente.');
+      return;
+    }
+
     setIsGenerating(true);
     window.scrollTo(0, 0);
     if (containerRef.current) containerRef.current.scrollTop = 0;
@@ -284,11 +314,12 @@ export default function App() {
     const element = printRef.current;
     const opt = {
       margin: 0,
-      filename: `catalogo-bwb-${new Date().toISOString().slice(0, 10)}.pdf`,
+      filename: 'CATALAGO-Planeta.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       enableLinks: false,
       html2canvas: {
         scale: 2, useCORS: true, logging: false, scrollY: 0,
+        letterRendering: true,
         windowWidth: document.documentElement.offsetWidth,
         windowHeight: element.scrollHeight,
       },
@@ -297,7 +328,7 @@ export default function App() {
     };
 
     try {
-      const worker = window.html2pdf().set(opt).from(element).toPdf();
+      const worker = html2pdf().set(opt).from(element).toPdf();
       const pdf = await worker.get('pdf');
 
       const tocEntries = Array.from(element.querySelectorAll('[data-toc-entry]'));
@@ -335,7 +366,7 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, []);
+  }, [coverPageCount, loadHtml2pdf]);
 
   // DnD handler
   const handleDragEnd = useCallback((event) => {
@@ -383,8 +414,6 @@ export default function App() {
     if (grouped.length === 0) grouped.push([]);
     return grouped;
   }, [cardsWithFillers]);
-
-  const coverPageCount = settings.showCover ? 1 : 0;
 
   const tocEntries = useMemo(() => {
     const tocMap = new Map();

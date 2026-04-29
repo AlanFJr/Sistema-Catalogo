@@ -16,8 +16,8 @@ const TocPage = React.memo(({ entries, tocPageIndex, coverPageCount, tocPageCoun
     data-toc-page-container={tocPageIndex}
   >
     <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: settings.borderColor }}>
-      <h2 className="text-3xl font-black" style={{ color: settings.primaryColor }}>Indice</h2>
-      <div className="text-[9px] font-mono text-gray-400">PAGINA {coverPageCount + tocPageIndex + 1}</div>
+      <h2 className="pdf-text pdf-title text-3xl font-black" style={{ color: settings.primaryColor }}>Indice</h2>
+      <div className="pdf-text pdf-small text-[9px] font-mono text-gray-400">PAGINA {coverPageCount + tocPageIndex + 1}</div>
     </div>
 
     <div className="mt-6 flex-1 flex flex-col gap-2">
@@ -33,9 +33,9 @@ const TocPage = React.memo(({ entries, tocPageIndex, coverPageCount, tocPageCoun
             data-toc-page-index={tocPageIndex}
             data-target-page={humanPageNumber}
           >
-            <span className="truncate max-w-[420px]">{entry.text}</span>
+            <span className="pdf-text pdf-toc-text truncate max-w-[420px]">{entry.text}</span>
             <span className="flex-1 border-b border-dotted border-gray-300" aria-hidden="true" />
-            <span className="text-[11px] font-mono text-gray-500">{humanPageNumber}</span>
+            <span className="pdf-text pdf-toc-number text-[11px] font-mono text-gray-500">{humanPageNumber}</span>
           </button>
         );
       })}

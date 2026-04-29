@@ -50,23 +50,39 @@ const CatalogPage = React.memo(({
       >
         <div className="flex-1 pr-6">
           {tocAnchorsByPage.has(pageIndex) && <div id={tocAnchorsByPage.get(pageIndex)} />}
-          <input
-            value={settings.title}
-            onChange={(e) => onSettingsChange({ ...settings, title: e.target.value })}
-            className="text-3xl font-black bg-transparent w-full focus:outline-none placeholder-gray-300 tracking-tight"
-            style={{ color: settings.primaryColor }}
-            placeholder="TITULO DO CATALOGO"
-          />
-          <input
-            value={subtitle}
-            onChange={(e) => onPageSubtitleChange(pageIndex, e.target.value)}
-            className="text-lg font-medium text-gray-500 bg-transparent w-full focus:outline-none mt-1 placeholder-gray-400"
-            placeholder="Subtitulo desta pagina"
-          />
+          {isGenerating ? (
+            <>
+              <div
+                className="pdf-text pdf-title text-3xl font-black tracking-tight break-words"
+                style={{ color: settings.primaryColor }}
+              >
+                {settings.title || 'TITULO DO CATALOGO'}
+              </div>
+              <div className="pdf-text pdf-subtitle text-lg font-medium text-gray-500 mt-1 break-words">
+                {subtitle || 'Subtitulo desta pagina'}
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                value={settings.title}
+                onChange={(e) => onSettingsChange({ ...settings, title: e.target.value })}
+                className="text-3xl font-black bg-transparent w-full focus:outline-none placeholder-gray-300 tracking-tight"
+                style={{ color: settings.primaryColor }}
+                placeholder="TITULO DO CATALOGO"
+              />
+              <input
+                value={subtitle}
+                onChange={(e) => onPageSubtitleChange(pageIndex, e.target.value)}
+                className="text-lg font-medium text-gray-500 bg-transparent w-full focus:outline-none mt-1 placeholder-gray-400"
+                placeholder="Subtitulo desta pagina"
+              />
+            </>
+          )}
         </div>
         <div className="text-right shrink-0 opacity-60">
-          <div className="text-[9px] font-mono text-gray-400">PAGINA {pageIndex + 1}</div>
-          <div className="text-[9px] font-mono text-gray-400">{todayDateText}</div>
+          <div className="pdf-text pdf-small text-[9px] font-mono text-gray-400">PAGINA {pageIndex + 1}</div>
+          <div className="pdf-text pdf-small text-[9px] font-mono text-gray-400">{todayDateText}</div>
         </div>
       </header>
 

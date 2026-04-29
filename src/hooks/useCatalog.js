@@ -2,15 +2,59 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, apiFetchWithRetry } from '../utils/api';
 import { compressDataUrlIfNeeded, readFileAsDataUrl, blobToDataUrl } from '../utils/image';
 import { dataUrlToBlob, mapItemToProduct, normalizePageSubtitles } from '../utils/helpers';
-import { DEFAULT_SETTINGS } from '../constants';
+import { DEFAULT_COVER_LOGOS, DEFAULT_SETTINGS } from '../constants';
+
+const createDefaultSettings = () => ({
+  ...DEFAULT_SETTINGS,
+  coverLogos: DEFAULT_COVER_LOGOS.map((logo) => ({ ...logo })),
+});
+
+const normalizeCoverLogos = (storedLogos) => {
+  const storedById = new Map(
+    Array.isArray(storedLogos)
+      ? storedLogos
+        .filter((logo) => logo && typeof logo === 'object' && logo.id)
+        .map((logo) => [logo.id, logo])
+      : []
+  );
+
+  return DEFAULT_COVER_LOGOS.map((defaultLogo) => {
+    const storedLogo = storedById.get(defaultLogo.id) || {};
+    return {
+      ...defaultLogo,
+      name: typeof storedLogo.name === 'string' ? storedLogo.name : defaultLogo.name,
+      enabled: typeof storedLogo.enabled === 'boolean' ? storedLogo.enabled : defaultLogo.enabled,
+    };
+  });
+};
+
+const normalizeSettings = (storedSettings = {}) => {
+  const base = createDefaultSettings();
+  const safeSettings = storedSettings && typeof storedSettings === 'object' ? storedSettings : {};
+  return {
+    ...base,
+    ...safeSettings,
+    coverLogos: normalizeCoverLogos(safeSettings.coverLogos),
+  };
+};
+
+const serializeSettings = (settings) => ({
+  ...settings,
+  coverLogos: (settings.coverLogos || []).map((logo) => ({
+    id: logo.id,
+    name: logo.name,
+    enabled: logo.enabled,
+  })),
+});
 
 export function useCatalog() {
   const [products, setProducts] = useState([]);
   const [catalogId, setCatalogId] = useState(() => localStorage.getItem('bwb_catalog_id') || null);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState(null);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState(() => createDefaultSettings());
   const [pageSubtitles, setPageSubtitles] = useState({});
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
 
   const productsRef = useRef([]);
   const lastValidRefByCard = useRef(new Map());
@@ -76,44 +120,57 @@ export function useCatalog() {
     return () => { isMounted = false; };
   }, []);
 
-  // Load/save titles per catalog
+  // Load saved visual settings per catalog.
   useEffect(() => {
-    if (!catalogId) return;
+    setIsSettingsLoaded(false);
+    if (!catalogId) {
+      setSettings(createDefaultSettings());
+      setPageSubtitles({});
+      return;
+    }
+
     const storageKey = `bwb_catalog_text_${catalogId}`;
     const raw = localStorage.getItem(storageKey);
 
-    setSettings((prev) => ({
-      ...prev,
-      title: DEFAULT_SETTINGS.title,
-      subtitle: DEFAULT_SETTINGS.subtitle,
-    }));
+    let nextSettings = createDefaultSettings();
+    let nextPageSubtitles = {};
+
     setPageSubtitles({});
 
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        setSettings((prev) => ({
-          ...prev,
-          title: typeof parsed.title === 'string' ? parsed.title : prev.title,
-          subtitle: typeof parsed.subtitle === 'string' ? parsed.subtitle : prev.subtitle,
-        }));
-        setPageSubtitles(normalizePageSubtitles(parsed.pageSubtitles));
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          const storedSettings = parsed.settings && typeof parsed.settings === 'object'
+            ? parsed.settings
+            : {
+              title: parsed.title,
+              subtitle: parsed.subtitle,
+            };
+
+          nextSettings = normalizeSettings(storedSettings);
+          nextPageSubtitles = normalizePageSubtitles(parsed.pageSubtitles);
+        }
+      } catch (_) {
+        // Keep defaults when localStorage contains invalid data.
       }
-    } catch (_) { /* ignore */ }
+    }
+
+    setSettings(nextSettings);
+    setPageSubtitles(nextPageSubtitles);
+    setIsSettingsLoaded(true);
   }, [catalogId]);
 
-  // Persist title changes
+  // Persist visual settings and page subtitles after the initial load.
   useEffect(() => {
-    if (!catalogId) return;
+    if (!catalogId || !isSettingsLoaded) return;
     const storageKey = `bwb_catalog_text_${catalogId}`;
     const payload = {
-      title: settings.title,
-      subtitle: settings.subtitle,
+      settings: serializeSettings(settings),
       pageSubtitles: normalizePageSubtitles(pageSubtitles),
     };
     localStorage.setItem(storageKey, JSON.stringify(payload));
-  }, [catalogId, settings.title, settings.subtitle, pageSubtitles]);
+  }, [catalogId, isSettingsLoaded, settings, pageSubtitles]);
 
   const reloadCatalog = useCallback(async () => {
     if (!catalogId) return;

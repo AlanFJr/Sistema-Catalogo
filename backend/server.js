@@ -66,12 +66,22 @@ const isAllowedOrigin = (origin) => {
     const requestUrl = new URL(origin);
     // Allow any request from private/local network IPs
     const host = requestUrl.hostname;
+    const hostLower = host.toLowerCase();
+    const machineName = os.hostname().toLowerCase();
     if (
       host === 'localhost' ||
       host === '127.0.0.1' ||
       host.startsWith('192.168.') ||
       host.startsWith('10.') ||
       /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    ) {
+      return true;
+    }
+    if (
+      hostLower === machineName ||
+      hostLower === `${machineName}.local` ||
+      hostLower.endsWith('.local') ||
+      !hostLower.includes('.')
     ) {
       return true;
     }
@@ -123,7 +133,13 @@ const uploadLimiterMiddleware = enableUploadRateLimit
   ? uploadLimiter
   : (_req, _res, next) => next();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      'upgrade-insecure-requests': null
+    }
+  }
+}));
 app.use(compression({ level: 6, threshold: 1024 }));
 app.use(cors(corsOptions));
 if (enableApiRateLimit) {

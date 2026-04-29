@@ -73,6 +73,7 @@ const SortableCatalogItem = React.memo(({
           onCtrlSelectStart={onCtrlSelectStart}
           onCtrlSelectHover={onCtrlSelectHover}
           dragHandleProps={{ ...attributes, ...listeners }}
+          isGenerating={isGenerating}
         />
       )}
     </div>

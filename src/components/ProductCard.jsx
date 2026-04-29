@@ -19,6 +19,7 @@ const ProductCard = React.memo(({
   onCtrlSelectStart,
   onCtrlSelectHover,
   dragHandleProps,
+  isGenerating,
 }) => {
   const fileInputRef = useRef(null);
   const cardRef = useRef(null);
@@ -200,22 +201,37 @@ const ProductCard = React.memo(({
         <div className="mb-1.5">
           <div className="flex items-center gap-1 mb-0.5">
             <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Ref</span>
+            {isGenerating ? (
+              <div
+                className="pdf-text pdf-card-code font-bold text-sm w-full px-0.5"
+                style={{ color: settings.primaryColor }}
+              >
+                {product.code || '-'}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={product.code}
+                onChange={(e) => handleContentChange('code', e.target.value)}
+                onBlur={(e) => onValidateRef(cardId, e.target.value)}
+                className="font-bold text-sm bg-transparent w-full focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-200 rounded px-0.5 transition-all"
+                style={{ color: settings.primaryColor }}
+              />
+            )}
+          </div>
+          {isGenerating ? (
+            <div className="pdf-text pdf-card-name w-full text-[11px] font-medium text-gray-700 px-0.5">
+              {product.name || 'Nome do Produto'}
+            </div>
+          ) : (
             <input
               type="text"
-              value={product.code}
-              onChange={(e) => handleContentChange('code', e.target.value)}
-              onBlur={(e) => onValidateRef(cardId, e.target.value)}
-              className="font-bold text-sm bg-transparent w-full focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-200 rounded px-0.5 transition-all"
-              style={{ color: settings.primaryColor }}
+              value={product.name}
+              onChange={(e) => handleContentChange('name', e.target.value)}
+              className="w-full text-[11px] font-medium text-gray-700 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-200 rounded px-0.5 truncate transition-all"
+              placeholder="Nome do Produto"
             />
-          </div>
-          <input
-            type="text"
-            value={product.name}
-            onChange={(e) => handleContentChange('name', e.target.value)}
-            className="w-full text-[11px] font-medium text-gray-700 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-200 rounded px-0.5 truncate transition-all"
-            placeholder="Nome do Produto"
-          />
+          )}
         </div>
 
         <div
@@ -225,19 +241,31 @@ const ProductCard = React.memo(({
           {settings.showDimensions && (
             <div className="flex flex-col">
               <label className="text-[7px] font-bold text-gray-400 uppercase">{settings.labelDimensions}</label>
-              <input value={product.dimensions} onChange={(e) => handleContentChange('dimensions', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              {isGenerating ? (
+                <div className="pdf-text pdf-card-detail text-[9px] text-gray-600 font-mono w-full">{product.dimensions || '-'}</div>
+              ) : (
+                <input value={product.dimensions} onChange={(e) => handleContentChange('dimensions', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              )}
             </div>
           )}
           {settings.showWeight && (
             <div className="flex flex-col">
               <label className="text-[7px] font-bold text-gray-400 uppercase">{settings.labelWeight}</label>
-              <input value={product.weight} onChange={(e) => handleContentChange('weight', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              {isGenerating ? (
+                <div className="pdf-text pdf-card-detail text-[9px] text-gray-600 font-mono w-full">{product.weight || '-'}</div>
+              ) : (
+                <input value={product.weight} onChange={(e) => handleContentChange('weight', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              )}
             </div>
           )}
           {settings.showBoxQty && (
             <div className="flex flex-col">
               <label className="text-[7px] font-bold text-gray-400 uppercase">{settings.labelBoxQty}</label>
-              <input value={product.boxQty} onChange={(e) => handleContentChange('boxQty', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              {isGenerating ? (
+                <div className="pdf-text pdf-card-detail text-[9px] text-gray-600 font-mono w-full">{product.boxQty || '-'}</div>
+              ) : (
+                <input value={product.boxQty} onChange={(e) => handleContentChange('boxQty', e.target.value)} className="text-[9px] text-gray-600 font-mono bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" placeholder="-" />
+              )}
             </div>
           )}
           {settings.showPrice && (
@@ -245,7 +273,13 @@ const ProductCard = React.memo(({
               <label className="text-[7px] font-bold text-gray-400 uppercase">{settings.labelPrice}</label>
               <div className="flex items-baseline gap-0.5">
                 <span className="text-[8px]" style={{ color: settings.priceColor }}>R$</span>
-                <input value={product.price} onChange={(e) => handleContentChange('price', e.target.value)} className="text-[10px] font-bold bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" style={{ color: settings.priceColor }} placeholder="0,00" />
+                {isGenerating ? (
+                  <div className="pdf-text pdf-card-price text-[10px] font-bold w-full" style={{ color: settings.priceColor }}>
+                    {product.price || '0,00'}
+                  </div>
+                ) : (
+                  <input value={product.price} onChange={(e) => handleContentChange('price', e.target.value)} className="text-[10px] font-bold bg-transparent focus:bg-white focus:outline-none rounded w-full truncate" style={{ color: settings.priceColor }} placeholder="0,00" />
+                )}
               </div>
             </div>
           )}

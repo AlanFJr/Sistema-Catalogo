@@ -19,3 +19,59 @@
 body.generating-pdf {
   overflow: hidden !important;
 }
+
+body.generating-pdf .pdf-text {
+  display: block;
+  line-height: 1.45 !important;
+  min-height: 1.45em;
+  overflow: visible !important;
+  padding-top: 1px;
+  padding-bottom: 2px;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+body.generating-pdf .pdf-title {
+  line-height: 1.22 !important;
+  min-height: 1.22em;
+  padding-bottom: 4px;
+}
+
+body.generating-pdf .pdf-subtitle,
+body.generating-pdf .pdf-cover-subtitle {
+  line-height: 1.3 !important;
+  min-height: 1.3em;
+  padding-bottom: 3px;
+}
+
+body.generating-pdf .pdf-cover-title {
+  line-height: 1.16 !important;
+  min-height: 1.16em;
+  padding-bottom: 6px;
+}
+
+body.generating-pdf .pdf-card-code {
+  line-height: 1.35 !important;
+  min-height: 1.35em;
+}
+
+body.generating-pdf .pdf-card-name {
+  line-height: 1.4 !important;
+  min-height: 1.4em;
+}
+
+body.generating-pdf .pdf-card-detail,
+body.generating-pdf .pdf-card-price,
+body.generating-pdf .pdf-small,
+body.generating-pdf .pdf-toc-text,
+body.generating-pdf .pdf-toc-number {
+  line-height: 1.5 !important;
+  min-height: 1.5em;
+}
+
+body.generating-pdf label,
+body.generating-pdf p {
+  line-height: 1.45 !important;
+  overflow: visible !important;
+}

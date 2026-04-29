@@ -18,11 +18,18 @@ if (Test-Path $portableNode) {
     $NpxCmd  = "npx"
     Write-Host "[OK] Node.js do sistema encontrado." -ForegroundColor Green
 } else {
-    Write-Host "[ERRO] Node.js nao encontrado!" -ForegroundColor Red
-    Write-Host "Baixe o Node.js portatil em: https://nodejs.org/en/download"
-    Write-Host "Extraia na pasta 'node\' dentro de '$Root'"
-    Read-Host "Pressione Enter para sair"
-    exit 1
+    Write-Host "[INFO] Node.js nao encontrado. Baixando Node.js portatil..." -ForegroundColor Yellow
+    $installNode = Join-Path $Root "scripts\install-portable-node.ps1"
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $installNode -Root $Root
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $portableNode)) {
+        Write-Host "[ERRO] Falha ao instalar Node.js portatil." -ForegroundColor Red
+        Read-Host "Pressione Enter para sair"
+        exit 1
+    }
+    $env:PATH = "$(Join-Path $Root 'node');$env:PATH"
+    $NodeExe = $portableNode
+    $NpmCmd  = $portableNpm
+    $NpxCmd  = $portableNpx
 }
 
 Write-Host ""
@@ -56,19 +63,13 @@ Write-Host "[2/4] Verificando banco de dados..."
 & $NpxCmd prisma migrate deploy --schema backend/prisma/schema.prisma 2>$null
 Write-Host "[OK] Banco de dados pronto." -ForegroundColor Green
 
-# ─── Build frontend if dist/ doesn't exist ───
-$distIndex = Join-Path $Root "dist\index.html"
-if (-not (Test-Path $distIndex)) {
-    Write-Host "[3/4] Construindo frontend (primeira execucao)..."
-    & $NpxCmd vite build
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERRO] Falha ao construir frontend." -ForegroundColor Red
-        Read-Host "Pressione Enter para sair"
-        exit 1
-    }
-    Write-Host "[OK] Frontend construido." -ForegroundColor Green
-} else {
-    Write-Host "[OK] Frontend ja construido." -ForegroundColor Green
+# --- Build frontend when source is newer than dist/ ---
+# Atualiza tambem quando o codigo mudou ou algum asset do dist sumiu.
+$ensureDist = Join-Path $Root "scripts\ensure-dist.ps1"
+& powershell -NoProfile -ExecutionPolicy Bypass -File $ensureDist -Root $Root -NpxCmd $NpxCmd
+if ($LASTEXITCODE -ne 0) {
+    Read-Host "Pressione Enter para sair"
+    exit 1
 }
 
 # ─── Kill any existing process on port 5176 ───
